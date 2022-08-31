@@ -1,3 +1,5 @@
+import enum
+
 class LibConstants:
     DEFAULT_FUNCTION = "mean"
     DEFAULT_DB = 'test_DB'
@@ -66,3 +68,13 @@ class LibConstants:
         FILTER_FEED_FLOW_LOW: "SP014",
         FILTER_FEED_FLOW_HIGH: "SP015"
     }
+
+
+class Supported_Normalized_calcs(enum.Enum):
+        PERMEATE_FLOW = 'normalized_permeate_flow'
+        DIFFERENTIAL_PRESSURE = 'normalized_differential_pressure'
+        PERMEATE_TDS = 'normalized_permeate_TDS'
+        NET_DRIVING_PRESSURE = 'net_driving_pressure'
+        FLUX = 'normalized_flux'
+        SALT_PASSAGE = 'normalized_salt_passage'
+        SPECIFIC_FLUX = 'normalized_specific_flux'

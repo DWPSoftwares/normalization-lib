@@ -2,16 +2,19 @@ import pandas as pd
 import numpy as np
 import logging
 
-from dw_timeseries_lib import Db_client, Tag, Measurement
+from dw_normalization_lib import Db_client, Tag, Measurement
 
-from normalization_calculation import Normalized_calculations
-from constants import LibConstants
+from dw_normalization_lib.normalization_calculation.normalization_calculations import Normalized_calculations
+from dw_normalization_lib.constants import LibConstants
+from dw_normalization_lib.constants import Supported_Normalized_calcs
+from dw_normalization_lib.objects.normalization_config import Normalization_config
+from dw_normalization_lib.objects.filters import Filters
 from errors import Empty_timeseries_result
 
 log = logging.getLogger(__name__)
 
 class Normalization_client:
-    def __init__(self, timeseries_client: Db_client, normalization_config, basline, filters) -> None:
+    def __init__(self, timeseries_client: Db_client, normalization_config: Normalization_config, basline, filters: Filters) -> None:
         """
             Initializes parameters
             Parameters:
@@ -35,7 +38,7 @@ class Normalization_client:
         df = self.__add_baseline()
         df = self.__apply_filters(df)
         if df.shape[0] == 0:
-            log.warning(f'widget: {self.normalization_config.__repr__}')
+            log.warning(f'widget: {self.config.__repr__}')
             return None
         df = self.__calculate_normalization_df(df)
         df = self.__remove_baseline(df)
@@ -48,11 +51,11 @@ class Normalization_client:
             tags[tag] = Tag(tag, tag, LibConstants.DEFAULT_FUNCTION)
         new_measurment = Measurement(
             "normalization",
-            self.normalization_config.systemId,
+            self.config.systemId,
             tags,
-            self.normalization_config.group,
-            self.normalization_config.start_datetime,
-            self.normalization_config.end_datetime,
+            self.config.group,
+            self.config.start_datetime,
+            self.config.end_datetime,
             db=LibConstants.DEFAULT_DB
         )
         measurments.append(new_measurment)
@@ -90,25 +93,25 @@ class Normalization_client:
                 f'Normalization data, Min and Max values : {widget[LibConstants.DATA_MIN_MAX_VALUES]}')
 
         for filter_ in LibConstants.FILTERS:
-            if float(self.normalization_config[filter_]["Low"]) < 0:
-                self.normalization_config[filter_]["Low"] = 0
+            if float(self.filters[filter_]["Low"]) < 0:
+                self.filters[filter_]["Low"] = 0
                 log.warning(
-                    f'{filter_} filter has negative value for widgetId: {self.normalization_config.id}')
+                    f'{filter_} filter has negative value for widgetId: {self.config.id}')
 
         log.debug(
-            f'Filter Recovery, Low: {self.normalization_config.recovery.low}, High :{self.normalization_config.recovery.high}')
+            f'Filter Recovery, Low: {self.filters.recovery_low}, High :{self.filters.recovery_high}')
         log.debug(
-            f'Filter Feed Flow, Low: {self.normalization_config.feedflow.low}, High :{self.normalization_config.feedflow.high}')
+            f'Filter Feed Flow, Low: {self.filters.feed_flow_low}, High :{self.filters.feed_flow_high}')
         log.debug(
-            f'Filter Reject Conductivity, Low: {self.normalization_config.rejectConductivity.low}, High :{self.normalization_config.rejectConductivity.high}')
+            f'Filter Reject Conductivity, Low: {self.filters.reject_conductivity_low}, High :{self.filters.reject_conductivity_high}')
         initial_row_count = df.shape[0]
         df.loc[
-            (df["Last_CCD_VR"] < float(self.normalization_config.recovery.low))
-            | (df["Last_CCD_VR"] > float(self.normalization_config.recovery.high))
-            | (df["FIT1"] < float(self.normalization_config.feedflow.low))
-            | (df["FIT1"] > float(self.normalization_config.feedflow.high))
-            | (df["CIT2"] < float(self.normalization_config.rejectConductivity.low))
-            | (df["CIT2"] > float(self.normalization_config.rejectConductivity.high))
+            (df["Last_CCD_VR"] < float(self.filters.recovery.low))
+            | (df["Last_CCD_VR"] > float(self.filters.recovery.high))
+            | (df["FIT1"] < float(self.filters.feed_flow_low))
+            | (df["FIT1"] > float(self.filters.feed_flow_high))
+            | (df["CIT2"] < float(self.filters.reject_conductivity_low))
+            | (df["CIT2"] > float(self.filters.reject_conductivity_high))
         ] = np.nan
 
         df.dropna(subset=["FIT1", "CIT2", "Last_CCD_VR"], inplace=True)
@@ -119,9 +122,7 @@ class Normalization_client:
     def __calculate_normalization_df(self, df):
         all_tags = ["Time"]
         normalization_tags = []
-        for i, tag in enumerate(self.normalization_config.tags):
-            if not tag["Tag"]:  # empty tag
-                continue
+        for i, tag in enumerate(self.config.tags):
             df_tag_label = f'Tag{str(i + 1)}'
             all_tags.append(df_tag_label)
             if tag["Tag"] in Normalized_calculations.normalization_function_map:
