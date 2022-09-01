@@ -1,20 +1,21 @@
 import pandas as pd
 import numpy as np
 import logging
+from typing import Dict
 
-from dw_normalization_lib import Db_client, Tag, Measurement
+from dw_timeseries_lib import Db_client, Tag, Measurement
 
 from dw_normalization_lib.normalization_calculation.normalization_calculations import Normalized_calculations
 from dw_normalization_lib.constants import LibConstants
 from dw_normalization_lib.constants import Supported_Normalized_calcs
 from dw_normalization_lib.objects.normalization_config import Normalization_config
 from dw_normalization_lib.objects.filters import Filters
-from errors import Empty_timeseries_result
+from dw_normalization_lib.errors import Empty_timeseries_result, Missing_baseline_tag, Invalid_baseline_values
 
 log = logging.getLogger(__name__)
 
 class Normalization_client:
-    def __init__(self, timeseries_client: Db_client, normalization_config: Normalization_config, basline, filters: Filters) -> None:
+    def __init__(self, timeseries_client: Db_client, normalization_config: Normalization_config, filters: Filters) -> None:
         """
             Initializes parameters
             Parameters:
@@ -28,27 +29,60 @@ class Normalization_client:
                     object containing data on the fikters
 
         """
-        self.connector = timeseries_client
+        self.timeseries_client = timeseries_client
         self.config = normalization_config
-        self.baseline = basline
+        if not filters:
+            filters = Filters()
         self.filters = filters
+
+    def add_baseline(self, baseline: Dict[str, float]):
+        def validate_baseline():
+            missing_tags = []
+            invalid_baseline_tags = []
+            for tag in LibConstants.BASELINE_TAGS:
+                if tag not in baseline:
+                    missing_tags.append(tag)
+                elif type(baseline[tag]) is not float:
+                    invalid_baseline_tags.append(tag)
+            
+            if missing_tags:
+                msg = f'mapping is missing required tags for normalization. The following tags are missing: {", ".join(missing_tags)}'
+                log.error(msg)
+                raise Missing_baseline_tag(msg)
+            
+            if invalid_baseline_tags:
+                msg = f'invalid values for some baseline tags: {", ".join(invalid_baseline_tags)}'
+                log.error(msg)
+                raise Invalid_baseline_values(msg)
+
+        def baseline_to_df():
+            df_dict = {key: [baseline[key]] for key in baseline}
+            df = pd.DataFrame.from_dict(df_dict)
+            return df
+        
+        validate_baseline()
+        # continue if no error
+
+        baseline_df = baseline_to_df()
+        self.baseline = baseline_df
+        
 
     def get_normalization(self):
         df = self.__normalization_mapping_df_from_influx()
-        df = self.__add_baseline()
+        df = self.__add_baseline(df)
         df = self.__apply_filters(df)
         if df.shape[0] == 0:
             log.warning(f'widget: {self.config.__repr__}')
             return None
         df = self.__calculate_normalization_df(df)
-        df = self.__remove_baseline(df)
+        # df = self.__remove_baseline(df)
         return df
     
     def __normalization_mapping_df_from_influx(self):
         measurments = list()
-        for tag in self.baseline.tags:
-            tags = {}
-            tags[tag] = Tag(tag, tag, LibConstants.DEFAULT_FUNCTION)
+        tags = {}
+        for tag in self.baseline:
+            tags[tag] = Tag(tag, self.config.mapping[tag], LibConstants.DEFAULT_FUNCTION)
         new_measurment = Measurement(
             "normalization",
             self.config.systemId,
@@ -59,7 +93,8 @@ class Normalization_client:
             db=LibConstants.DEFAULT_DB
         )
         measurments.append(new_measurment)
-        df = self.timeseries_client.get_data(measurments)
+        res_measurment = self.timeseries_client.get_data(measurments)
+        df = res_measurment[0].data
         
         if df.empty:
             error = "Error in fetching data for baseline tags - no data"
@@ -75,7 +110,7 @@ class Normalization_client:
         return df
 
     def __add_baseline(self, df):
-        df = df.append(self.baseline.data, ignore_index=True)
+        df = df.append(self.baseline, ignore_index=True)
         return df
 
     def __remove_baseline(self, df):
@@ -92,11 +127,11 @@ class Normalization_client:
             log.debug(
                 f'Normalization data, Min and Max values : {widget[LibConstants.DATA_MIN_MAX_VALUES]}')
 
-        for filter_ in LibConstants.FILTERS:
-            if float(self.filters[filter_]["Low"]) < 0:
-                self.filters[filter_]["Low"] = 0
-                log.warning(
-                    f'{filter_} filter has negative value for widgetId: {self.config.id}')
+        # for filter_ in LibConstants.FILTERS:
+        #     if float(self.filters[filter_]["Low"]) < 0:
+        #         self.filters[filter_]["Low"] = 0
+        #         log.warning(
+        #             f'{filter_} filter has negative value for widgetId: {self.config.id}')
 
         log.debug(
             f'Filter Recovery, Low: {self.filters.recovery_low}, High :{self.filters.recovery_high}')
@@ -106,32 +141,32 @@ class Normalization_client:
             f'Filter Reject Conductivity, Low: {self.filters.reject_conductivity_low}, High :{self.filters.reject_conductivity_high}')
         initial_row_count = df.shape[0]
         df.loc[
-            (df["Last_CCD_VR"] < float(self.filters.recovery.low))
-            | (df["Last_CCD_VR"] > float(self.filters.recovery.high))
+            (df["Last_CCD_VR"] < float(self.filters.recovery_low))
+            | (df["Last_CCD_VR"] > float(self.filters.recovery_high))
             | (df["FIT1"] < float(self.filters.feed_flow_low))
             | (df["FIT1"] > float(self.filters.feed_flow_high))
             | (df["CIT2"] < float(self.filters.reject_conductivity_low))
             | (df["CIT2"] > float(self.filters.reject_conductivity_high))
         ] = np.nan
 
-        df.dropna(subset=["FIT1", "CIT2", "Last_CCD_VR"], inplace=True)
+        # df.dropna(subset=["FIT1", "CIT2", "Last_CCD_VR"], inplace=True)
         filter_row_count = df.shape[0]
         if filter_row_count > 0:
             log.info(f'Filtered rows : {initial_row_count - filter_row_count}')
+        return df
 
     def __calculate_normalization_df(self, df):
-        all_tags = ["Time"]
-        normalization_tags = []
         for i, tag in enumerate(self.config.tags):
-            df_tag_label = f'Tag{str(i + 1)}'
-            all_tags.append(df_tag_label)
-            if tag["Tag"] in Normalized_calculations.normalization_function_map:
-                if df_tag_label in pd_reg:
-                    pd_reg = pd_reg.drop(df_tag_label, 1)
+            if tag in Supported_Normalized_calcs:
+                calculation_client = Normalized_calculations()
+                print(tag)
+                print(tag.value)
                 log.debug(
-                    f'Calling normalized Function :{Normalized_calculations.normalization_function_map[tag["Tag"]]}, Tag :{tag["Tag"]}'
+                    f'Calling normalized Function :{calculation_client.normalization_function_map[tag.value]}, Tag :{tag.value}'
                 )
-                df = Normalized_calculations.normalization_function_map[tag["Tag"]](df, i)
-                tag["TagName"] = LibConstants.LABELS[tag["Tag"]]
-                tag["Units"] = LibConstants.UNITS[tag["Tag"]]
-                normalization_tags.append(df_tag_label)
+                df = calculation_client.normalization_function_map[tag.value](df, i)
+
+        result_columns = ["Time"]
+        result_columns.extend([tag.value for tag in self.config.tags if tag in Supported_Normalized_calcs])
+        res_df = df[result_columns]
+        return res_df

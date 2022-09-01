@@ -11,13 +11,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 base_path = os.path.dirname(__file__)
 
 # Get the version (borrowed from SQLAlchemy)
-with open(os.path.join(base_path, "src", "urllib3", "_version.py")) as fp:
+with open(os.path.join(base_path, "src", "dw_normalization_lib", "_version.py")) as fp:
     version = (
         re.compile(r""".*__version__ = ["'](.*?)['"]""", re.S).match(fp.read()).group(1)
     )
 
 setup(
-    name='timeseries-db-lib',
+    name='normalization-lib',
     version=version,
     author='Eduard Stefano',
     author_email='eduard.gorohovski@dupont.com',

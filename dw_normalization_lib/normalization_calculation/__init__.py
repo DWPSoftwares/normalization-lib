@@ -1,1 +1,1 @@
-from .normalization_calculations import Normalized_calculations
+from dw_normalization_lib.normalization_calculation.normalization_calculations import Normalized_calculations

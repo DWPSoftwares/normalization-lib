@@ -1,0 +1,56 @@
+import os
+import sys
+import json
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import datetime
+
+from dw_normalization_lib import (
+    Normalization_client,
+    BASELINE_DEFAULT_TAG_MAP,
+    Filters,
+    Normalization_config,
+    Supported_Normalized_calcs
+)
+
+from dw_timeseries_lib import (
+    Timeseries_factory,
+    SupportedDbs,
+    Influx_connection_data,
+    Df_influx_convertor
+)
+
+DEFAULT_SYSTEMID = 'WEST_MORGAN_1_1137C_RO1'
+DEFAULT_GROUP = 300  # 5 mins
+
+with open("./documentation/config.json", 'r') as fi:
+    config = json.load(fi)
+
+with open("./documentation/mapping.json", 'r') as fi:
+    mapping = json.load(fi)
+
+with open("./documentation/baseline.json", 'r') as fi:
+    baseline = json.load(fi)
+
+# creating and configuring influx client
+connection_data = Influx_connection_data(config["host"], config["port"], config["username"], config["password"])
+timeseries_factory = Timeseries_factory()
+df_converter = Df_influx_convertor()
+influx_client = timeseries_factory.get_instance(SupportedDbs(1), connection_data, df_converter)
+
+#creating and configuring normalization config
+normalization_config = Normalization_config(
+    1,
+    DEFAULT_SYSTEMID,
+    DEFAULT_GROUP,
+    datetime.datetime.utcnow() - datetime.timedelta(days=1),  # 1 day ago
+    datetime.datetime.utcnow(),
+    [Supported_Normalized_calcs('normalized_permeate_flow'), Supported_Normalized_calcs('normalized_differential_pressure')],
+    mapping
+)
+
+client = Normalization_client(influx_client, normalization_config, None)
+client.add_baseline(baseline)
+result = client.get_normalization()
+
+print(result)

@@ -16,21 +16,21 @@ class Normalized_calculations():
             "normalized_specific_flux": self.normalized_specific_flux,
         }
 
-    def calulate_coefficient(df):
+    def calulate_coefficient(self, df):
         if df["TT_1_C"] > 25:
             return 2640
         else:
             return 3020
 
 
-    def calculate_TT_1_C(df):
+    def calculate_TT_1_C(self, df):
         if np.isnan(df["TT1"]) or df["TT1"] is None:
             return 0
         return (df["TT1"] - 32) / 1.8
 
 
     # IFERROR(IF(T9-V9<2,U9+T9,T9),0)
-    def calculate_lead_element_flow(df):
+    def calculate_lead_element_flow(self, df):
         try:
             if np.isnan(df["FIT1"]) or np.isnan(df["FIT3"]):
                 return 0
@@ -45,7 +45,7 @@ class Normalized_calculations():
 
 
     # IFERROR(IF(Z8=0,0,V8/Z8),0)
-    def calculate_module_recovery(df):
+    def calculate_module_recovery(self, df):
         try:
             if np.isnan(df["lead_element_flow"]):
                 return 0
@@ -60,7 +60,7 @@ class Normalized_calculations():
 
 
     # IFERROR(((L7*AC7)+((M7*1000)*(1-AC7)))*0.67,0)
-    def calculate_feed_cond_C(df):
+    def calculate_feed_cond_C(self, df):
         try:
             if (
                 np.isnan(df["CIT1"])
@@ -76,7 +76,7 @@ class Normalized_calculations():
 
 
     # IFERROR(IF(AC6=0,0,AH6*((LN(1/(1-AC6)))/AC6)),0)
-    def calculate_feed_reject_cond_C(df):
+    def calculate_feed_reject_cond_C(self, df):
         try:
             if (
                 df["module_recovery"] == 0
@@ -94,7 +94,7 @@ class Normalized_calculations():
 
 
     # IFERROR(IF(AG6<20000,(AG6*(C6+320))/491000,((0.0117*AG6-34/14.23)*((C6+320)/345))),0)
-    def calculate_osmotic_pressure(df):
+    def calculate_osmotic_pressure(self, df):
         try:
             if np.isnan(df["feed_reject_cond_C"]) or np.isnan(df["TT_1_C"]):
                 return 0
@@ -109,7 +109,7 @@ class Normalized_calculations():
 
 
     # IFERROR((((E5+F5)/2)/14.23)-(12/14.23)-AF5,0)
-    def calculate_trans_membrane_pressure(df):
+    def calculate_trans_membrane_pressure(self, df):
         try:
             if np.isnan(df["PT2"]) or np.isnan(df["osmotic_pressure"]):
                 return 0
@@ -124,7 +124,7 @@ class Normalized_calculations():
 
     # V184*($AJ$5/AJ184)*($AE$5/AE184)
     def calculate_normalized_permeate_flow(
-        df, bl_trans_membrane_pressure, bl_temperature_correction_factor
+        self, df, bl_trans_membrane_pressure, bl_temperature_correction_factor
     ):
         try:
             if (
@@ -148,12 +148,12 @@ class Normalized_calculations():
 
 
     # (IF(C5>25,EXP(2640*((1/298)-(1/(273+C5)))),EXP(3020*((1/298)-(1/(273+C5)))))
-    def calculate_temperature_correction_factor(df):
+    def calculate_temperature_correction_factor(self, df):
         return np.exp(df["coefficient"] * ((1 / 298) - (1 / (273 + df["TT_1_C"]))))
 
 
     # I8*($AE$5/AE8)
-    def calculate_normalized_differential_pressure(df, bl_temperature_correction_factor):
+    def calculate_normalized_differential_pressure(self, df, bl_temperature_correction_factor):
         try:
             val = (df["PT2"] - df["PT3"]) * (
                 bl_temperature_correction_factor /
@@ -165,7 +165,7 @@ class Normalized_calculations():
 
 
     # IFERROR((N5*(C5+320))/491000,0)
-    def calculate_osmotic_pressure_Posmo_p(df):
+    def calculate_osmotic_pressure_Posmo_p(self, df):
         if np.isnan(df["CIT3"]) or np.isnan(df["TT_1_C"]):
             return 0
         else:
@@ -173,7 +173,7 @@ class Normalized_calculations():
 
 
     def calculate_normalized_permeate_TDS(
-        df, bl_trans_membrane_pressure, bl_feed_reject_cond_C, bl_osmotic_pressure_Posmo_p
+        self, df, bl_trans_membrane_pressure, bl_feed_reject_cond_C, bl_osmotic_pressure_Posmo_p
     ):
         try:
             if np.isnan(df["CIT3"]):
@@ -191,7 +191,7 @@ class Normalized_calculations():
 
 
     # IFERROR((L5*LN((M5*1000)/L5))/(1-(L5/(M5*1000))),0)
-    def calculate_avg_feed(df):
+    def calculate_avg_feed(self, df):
         if np.isnan(df["CIT1"]) or np.isnan(df["CIT2"]) or df["CIT1"] == 0 or df['CIT2'] == 0:
             return 0
         return (df["CIT1"] * np.log(df["CIT2"] * 1_000 / df["CIT1"])) / (
@@ -200,7 +200,7 @@ class Normalized_calculations():
 
 
     # (CALC) Q = IFERROR((O7-N7)/O7,0)
-    def calculate_avg_membrane_rejection(df):
+    def calculate_avg_membrane_rejection(self, df):
         if np.isnan(df["CIT3"]):
             return 0
         try:
@@ -210,7 +210,7 @@ class Normalized_calculations():
 
 
     # 100*(1-Q33)*($AE$5/AE33)
-    def calculate_normalized_salt_passage(df, bl_temperature_correction_factor):
+    def calculate_normalized_salt_passage(self, df, bl_temperature_correction_factor):
         return (
             100
             * (1 - df["avg_membrane_rejection"])
@@ -219,7 +219,7 @@ class Normalized_calculations():
 
 
     # ((I5/2)-12-(AF5*14.23)+(AM5*14.23))*-1
-    def calculate_net_driving_pressure(df):
+    def calculate_net_driving_pressure(self, df):
         if np.isnan(df["PT2"]) or np.isnan(df["PT3"]):
             return 0
         return (
@@ -231,7 +231,7 @@ class Normalized_calculations():
 
 
     # IFERROR((V5*1440)/1200,0)
-    def calculate_operating_flux(df):
+    def calculate_operating_flux(self, df):
         if np.isnan(df["FIT3"]):
             return 0
         return df["FIT3"] * 1440 / 1200
@@ -239,7 +239,7 @@ class Normalized_calculations():
 
     # IFERROR(AX5*($AJ$5/AJ5)*($AE$5/AE5),0)
     def calculate_normalized_flux(
-        df, bl_trans_membrane_pressure, bl_temperature_correction_factor
+        self, df, bl_trans_membrane_pressure, bl_temperature_correction_factor
     ):
         return (
             df["operating_flux"]
@@ -249,7 +249,7 @@ class Normalized_calculations():
 
 
     # IFERROR(AX5/AV5,0)
-    def calculate_specific_flux(df):
+    def calculate_specific_flux(self, df):
         try:
             return df["operating_flux"] / df["net_driving_pressure"]
         except ZeroDivisionError:
@@ -293,7 +293,7 @@ class Normalized_calculations():
             df["trans_membrane_pressure"].values[-1],
             df["temperature_correction_factor"].values[-1],
         )
-        df["Tag" + str(i + 1)] = df.apply(
+        df["normalized_permeate_flow"] = df.apply(
             self.calculate_normalized_permeate_flow, axis=1, args=args
         )
         return df
@@ -310,7 +310,7 @@ class Normalized_calculations():
             )
 
         args = (df["temperature_correction_factor"].values[-1],)
-        df["Tag" + str(i + 1)] = df.apply(
+        df["normalized_differential_pressure"] = df.apply(
             self.calculate_normalized_differential_pressure, axis=1, args=args
         )
         return df
@@ -345,7 +345,7 @@ class Normalized_calculations():
             df["feed_reject_cond_C"].values[-1],
             df["osmotic_pressure_Posmo_p"].values[-1],
         )
-        df["Tag" + str(i + 1)] = df.apply(
+        df["normalized_permeate_TDS"] = df.apply(
             self.calculate_normalized_permeate_TDS, axis=1, args=args
         )
         return df
@@ -378,7 +378,7 @@ class Normalized_calculations():
                 self.calculate_osmotic_pressure_Posmo_p, axis=1
             )
         log.debug('normalization - calculate_net_driving_pressure')
-        df["Tag" + str(i + 1)] = df.apply(self.calculate_net_driving_pressure, axis=1)
+        df["net_driving_pressure"] = df.apply(self.calculate_net_driving_pressure, axis=1)
         return df
 
 
@@ -415,7 +415,7 @@ class Normalized_calculations():
             df["trans_membrane_pressure"].values[-1],
             df["temperature_correction_factor"].values[-1],
         )
-        df["Tag" + str(i + 1)] = df.apply(self.calculate_normalized_flux,
+        df["normalized_flux"] = df.apply(self.calculate_normalized_flux,
                                         axis=1, args=args)
         return df
 
@@ -438,7 +438,7 @@ class Normalized_calculations():
             )
 
         args = (df["temperature_correction_factor"].values[-1],)
-        df["Tag" + str(i + 1)] = df.apply(
+        df["normalized_salt_passage"] = df.apply(
             self.calculate_normalized_salt_passage, axis=1, args=args
         )
         return df
@@ -492,6 +492,6 @@ class Normalized_calculations():
         df["normalized_flux"] = df.apply(self.calculate_normalized_flux,
                                         axis=1, args=args)
 
-        df["Tag" + str(i + 1)] = df.apply(
+        df["normalized_specific_flux"] = df.apply(
             self.calculate_normalized_specific_flux, axis=1)
         return df
