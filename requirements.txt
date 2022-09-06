@@ -1,0 +1,4 @@
+influxdb==5.3.1
+numpy==1.23.2
+pandas==1.4.3
+git+https://github.com/DWPSoftwares/timeseries-db-lib.git@master

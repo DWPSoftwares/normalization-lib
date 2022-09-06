@@ -45,7 +45,7 @@ normalization_config = Normalization_config(
     DEFAULT_GROUP,
     datetime.datetime.utcnow() - datetime.timedelta(days=1),  # 1 day ago
     datetime.datetime.utcnow(),
-    [Supported_Normalized_calcs('normalized_permeate_flow'), Supported_Normalized_calcs('normalized_differential_pressure')],
+    [Supported_Normalized_calcs('normalized_permeate_flow'), Supported_Normalized_calcs('net_driving_pressure')],
     mapping
 )
 
