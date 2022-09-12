@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict
+from typing import List, Dict, Union, Optional
+import datetime
 
 from dw_timeseries_lib import Db_client, Tag, Measurement
 
@@ -10,12 +11,32 @@ from dw_normalization_lib.constants import LibConstants
 from dw_normalization_lib.constants import Supported_Normalized_calcs
 from dw_normalization_lib.objects.normalization_config import Normalization_config
 from dw_normalization_lib.objects.filters import Filters
-from dw_normalization_lib.errors import Empty_timeseries_result, Missing_baseline_tag, Invalid_baseline_values
+from dw_normalization_lib.errors import (
+    Empty_timeseries_result,
+    Missing_baseline_tag,
+    Invalid_baseline_values,
+    SystemId_not_configured,
+    No_timeseries_data_found
+)
 
 log = logging.getLogger(__name__)
 
 class Normalization_client:
-    def __init__(self, timeseries_client: Db_client, normalization_config: Normalization_config, filters: Filters) -> None:
+    id: int
+    systemId: Union[str, None] = None
+    mapping: Dict[str, str]
+    group: int
+    start_datetime: Union[datetime.datetime, None] = None
+    end_datetime: Union[datetime.datetime, None] = None
+    tags: Union[List[Supported_Normalized_calcs], None] = None
+    baseline: Union[pd.DataFrame, None] = None
+    filters: Filters
+
+    def __init__(
+        self,
+        timeseries_client: Db_client,
+        normalization_config: Optional[Union[None, Normalization_config]],
+    ) -> None:
         """
             Initializes parameters
             Parameters:
@@ -23,17 +44,23 @@ class Normalization_client:
                     user for making calls to influx 
                 normalization_config: str
                     contains data on which normalization functions are required, time window and bucket size
-                basline: str,
-                     object containing data on the baseline
-                filters: str
-                    object containing data on the fikters
-
         """
+        if normalization_config:
+            self.id = normalization_config.id
+            self.systemId = normalization_config.systemId
+            self.mapping = normalization_config.mapping
+            self.group = normalization_config.group
+            self.start_datetime = normalization_config.start_datetime
+            self.end_datetime = normalization_config.end_datetime
+            self.tags = normalization_config.tags
+            self.filters = normalization_config.filters
+        else:  # setting defaults
+            self.id = LibConstants.DEFAULT_NORMALIZATION_CLIENT_ID
+            self.mapping = LibConstants.BASELINE_DEFAULT_TAG_MAP
+            self.group = LibConstants.DEFAULT_GROUP
+            self.filters = Filters()
+
         self.timeseries_client = timeseries_client
-        self.config = normalization_config
-        if not filters:
-            filters = Filters()
-        self.filters = filters
 
     def add_baseline(self, baseline: Dict[str, float]):
         def validate_baseline():
@@ -42,8 +69,8 @@ class Normalization_client:
             for tag in LibConstants.BASELINE_TAGS:
                 if tag not in baseline:
                     missing_tags.append(tag)
-                elif type(baseline[tag]) is not float:
-                    invalid_baseline_tags.append(tag)
+                # elif type(baseline[tag]) is not float:
+                #     invalid_baseline_tags.append(tag)
             
             if missing_tags:
                 msg = f'mapping is missing required tags for normalization. The following tags are missing: {", ".join(missing_tags)}'
@@ -54,6 +81,7 @@ class Normalization_client:
                 msg = f'invalid values for some baseline tags: {", ".join(invalid_baseline_tags)}'
                 log.error(msg)
                 raise Invalid_baseline_values(msg)
+        
 
         def baseline_to_df():
             df_dict = {key: [baseline[key]] for key in baseline}
@@ -65,31 +93,93 @@ class Normalization_client:
 
         baseline_df = baseline_to_df()
         self.baseline = baseline_df
+
+    def baseline_from_timestamp(self, timestamp:datetime.datetime):
+        def extract_closest_df_value(df, column, timestamp):
+            df = df[[column]]
+            df = df.dropna()
+            if len(df):
+                loc = df.index.get_loc(timestamp, method="nearest")
+                val = df[column][loc]
+                if np.isnan(val):
+                    val = None
+                return val
+            else:
+                return None
+
+        if not self.systemId:
+            raise SystemId_not_configured()
+
+        tz = timestamp.tzinfo
+        if tz:
+            tz = str(tz)
+        else:
+            tz = 'UTC'
+
+        dt = timestamp.replace(tzinfo=None)
+        start_dt = dt - datetime.timedelta(minutes=30)
+        end_dt = dt + datetime.timedelta(minutes=30)
         
+        measurments = list()
+        tags = {}
+        for tag in LibConstants.BASELINE_TAGS:
+            tags[tag] = Tag(tag, self.mapping[tag], LibConstants.DEFAULT_FUNCTION)
+        baseline_measurment = Measurement(
+            "baseline",
+            self.systemId,
+            tags,
+            LibConstants.DEFAULT_GROUP,
+            start_dt,
+            end_dt,
+            timezone=tz,
+            db=LibConstants.DEFAULT_DB
+        )
+        print(baseline_measurment)
+        measurments.append(baseline_measurment)
+        res_measurment = self.timeseries_client.get_data(measurments)
+        df = res_measurment[0].data
+
+        baseline = {}
+        if df is not None and not df.empty:
+            df_dt = pd.to_datetime(dt)
+            df["Time"] = pd.to_datetime(df["Time"]).dt.tz_localize(None)  # convert from ISO to df TimeStamp
+            df = df.set_index("Time")
+            for i, column in enumerate(df.columns.values.tolist()):
+                if column == "Time":
+                    continue
+                val = extract_closest_df_value(df.copy(), column, df_dt)
+                baseline[column] = val
+        else:
+            mapping_tags_string = ' '.join([self.mapping[tag] for tag in tag in LibConstants.BASELINE_TAGS])
+            log.warn('No data in timeseries db for all tags in selected mapping: {mapping_tags_string}, \
+                for system {self.systemId} in the time window from {start_dt} to {end_dt}')
+            baseline = {elem: None for elem in self.mapping}
+        
+        return baseline
 
     def get_normalization(self):
         df = self.__normalization_mapping_df_from_influx()
         df = self.__add_baseline(df)
         df = self.__apply_filters(df)
         if df.shape[0] == 0:
-            log.warning(f'widget: {self.config.__repr__}')
+            log.warning(f'widget: {self.__repr__}')
             return None
         df = self.__calculate_normalization_df(df)
-        # df = self.__remove_baseline(df)
+        df = self.__remove_baseline(df)
         return df
     
     def __normalization_mapping_df_from_influx(self):
         measurments = list()
         tags = {}
         for tag in self.baseline:
-            tags[tag] = Tag(tag, self.config.mapping[tag], LibConstants.DEFAULT_FUNCTION)
+            tags[tag] = Tag(tag, self.mapping[tag], LibConstants.DEFAULT_FUNCTION)
         new_measurment = Measurement(
             "normalization",
-            self.config.systemId,
+            self.systemId,
             tags,
-            self.config.group,
-            self.config.start_datetime,
-            self.config.end_datetime,
+            self.group,
+            self.start_datetime,
+            self.end_datetime,
             db=LibConstants.DEFAULT_DB
         )
         measurments.append(new_measurment)
@@ -156,17 +246,15 @@ class Normalization_client:
         return df
 
     def __calculate_normalization_df(self, df):
-        for i, tag in enumerate(self.config.tags):
+        for i, tag in enumerate(self.tags):
             if tag in Supported_Normalized_calcs:
                 calculation_client = Normalized_calculations()
-                print(tag)
-                print(tag.value)
                 log.debug(
                     f'Calling normalized Function :{calculation_client.normalization_function_map[tag.value]}, Tag :{tag.value}'
                 )
                 df = calculation_client.normalization_function_map[tag.value](df, i)
 
         result_columns = ["Time"]
-        result_columns.extend([tag.value for tag in self.config.tags if tag in Supported_Normalized_calcs])
+        result_columns.extend([tag.value for tag in self.tags if tag in Supported_Normalized_calcs])
         res_df = df[result_columns]
         return res_df

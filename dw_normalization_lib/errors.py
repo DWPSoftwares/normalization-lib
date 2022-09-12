@@ -48,3 +48,21 @@ class Invalid_baseline_values(Exception):
         else:
             self.message = 'some tags have invalid value'
         super().__init__(*args)
+
+
+class SystemId_not_configured(Exception):
+    def __init__(self, *args: object) -> None:
+        if args:
+            self.message = args[0]
+        else:
+            self.message = 'No systemId configured for normalization cliend instance'
+        super().__init__(*args)
+
+
+class No_timeseries_data_found(Exception):
+    def __init__(self, *args: object) -> None:
+        if args:
+            self.message = args[0]
+        else:
+            self.message = 'no time series data has been found for the selected system, tags and time window'
+        super().__init__(*args)

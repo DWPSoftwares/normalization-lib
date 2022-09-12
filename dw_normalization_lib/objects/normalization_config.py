@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 
 from dw_normalization_lib.constants import LibConstants, Supported_Normalized_calcs
 from dw_normalization_lib.errors import Missing_mapping_tag
+from dw_normalization_lib.objects.filters import Filters
 
 
 class Normalization_config():
@@ -14,7 +15,8 @@ class Normalization_config():
         start_datetime: datetime.datetime,
         end_datetime: datetime.datetime, 
         tags: List[Supported_Normalized_calcs],
-        mapping: Optional[Dict[str, str]] = None
+        mapping: Optional[Dict[str, str]] = None,
+        filters: Optional[Filters] = None
     ) -> None:
         '''
             Used for initializing the normalization client with reqired data for the execution of the calculation.
@@ -60,6 +62,11 @@ class Normalization_config():
             self.mapping = mapping
         else:
             self.mapping = LibConstants.BASELINE_DEFAULT_TAG_MAP
+
+        if filters:
+            self.filters = filters
+        else: 
+            self.filters = Filters()
 
     def validate_mapping(self) -> bool:
         '''

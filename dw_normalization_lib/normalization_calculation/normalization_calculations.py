@@ -257,7 +257,7 @@ class Normalized_calculations():
 
 
     # IFERROR(AY6*((AJ6+AM6)/($AJ$5+$AM$5))*($AE$5/AE6),0)
-    def calculate_normalized_specific_flux(df):
+    def calculate_normalized_specific_flux(self, df):
         try:
             return df["normalized_flux"] / df["net_driving_pressure"]
         except ZeroDivisionError:

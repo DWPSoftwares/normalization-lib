@@ -1,7 +1,9 @@
 import enum
 
 class LibConstants:
+    DEFAULT_NORMALIZATION_CLIENT_ID = 1
     DEFAULT_FUNCTION = "mean"
+    DEFAULT_GROUP = 10  # 10 seconds
     DEFAULT_DB = 'test_DB'
     FILTERS = ('Recovery', 'FeedFlow', 'RejectConductivity')
     DATA_MIN_MAX_VALUES = "DATA_MIN_MAX_VALUES"

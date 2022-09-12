@@ -4,6 +4,7 @@ import json
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import datetime
+import pytz
 
 from dw_normalization_lib import (
     Normalization_client,
@@ -49,8 +50,16 @@ normalization_config = Normalization_config(
     mapping
 )
 
-client = Normalization_client(influx_client, normalization_config, None)
+client = Normalization_client(influx_client, normalization_config)
+
+ts = datetime.datetime(2022, 9, 1, 9, 18)
+
+baseline = client.baseline_from_timestamp(ts)
+print(baseline)
+
 client.add_baseline(baseline)
+
+
 result = client.get_normalization()
 
 print(result)
