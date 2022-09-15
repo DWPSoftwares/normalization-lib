@@ -28,9 +28,10 @@ class Normalization_client:
     group: int
     start_datetime: Union[datetime.datetime, None] = None
     end_datetime: Union[datetime.datetime, None] = None
-    tags: Union[List[Supported_Normalized_calcs], None] = None
+    normalization_tags: Union[List[Supported_Normalized_calcs], None] = None
     baseline: Union[pd.DataFrame, None] = None
     filters: Filters
+    tags: Union[List[str], None] = None
 
     def __init__(
         self,
@@ -52,7 +53,7 @@ class Normalization_client:
             self.group = normalization_config.group
             self.start_datetime = normalization_config.start_datetime
             self.end_datetime = normalization_config.end_datetime
-            self.tags = normalization_config.tags
+            self.normalization_tags = normalization_config.tags
             self.filters = normalization_config.filters
         else:  # setting defaults
             self.id = LibConstants.DEFAULT_NORMALIZATION_CLIENT_ID
@@ -134,7 +135,6 @@ class Normalization_client:
             timezone=tz,
             db=LibConstants.DEFAULT_DB
         )
-        print(baseline_measurment)
         measurments.append(baseline_measurment)
         res_measurment = self.timeseries_client.get_data(measurments)
         df = res_measurment[0].data
@@ -158,7 +158,7 @@ class Normalization_client:
         return baseline
 
     def get_normalization(self):
-        df = self.__normalization_mapping_df_from_influx()
+        df = self.__normalization_mapping_df_from_timeseries_db()
         df = self.__add_baseline(df)
         df = self.__apply_filters(df)
         if df.shape[0] == 0:
@@ -168,11 +168,16 @@ class Normalization_client:
         df = self.__remove_baseline(df)
         return df
     
-    def __normalization_mapping_df_from_influx(self):
+    def __normalization_mapping_df_from_timeseries_db(self):
         measurments = list()
         tags = {}
         for tag in self.baseline:
             tags[tag] = Tag(tag, self.mapping[tag], LibConstants.DEFAULT_FUNCTION)
+        # case client requested additional system tags
+        if self.tags:
+            for tag in self.tags:
+                tags[tag] = Tag(tag, tag, LibConstants.DEFAULT_FUNCTION)
+        # resume normal flow
         new_measurment = Measurement(
             "normalization",
             self.systemId,
@@ -246,15 +251,18 @@ class Normalization_client:
         return df
 
     def __calculate_normalization_df(self, df):
-        for i, tag in enumerate(self.tags):
+        for i, tag in enumerate(self.normalization_tags):
             if tag in Supported_Normalized_calcs:
                 calculation_client = Normalized_calculations()
                 log.debug(
                     f'Calling normalized Function :{calculation_client.normalization_function_map[tag.value]}, Tag :{tag.value}'
                 )
-                df = calculation_client.normalization_function_map[tag.value](df, i)
+                df = calculation_client.normalization_function_map[tag.value](df)
 
         result_columns = ["Time"]
-        result_columns.extend([tag.value for tag in self.tags if tag in Supported_Normalized_calcs])
+        result_columns.extend([tag.value for tag in self.normalization_tags if tag in Supported_Normalized_calcs])
+        # case client requested additional system tags
+        if self.tags:
+            result_columns.extend([tag for tag in self.tags])
         res_df = df[result_columns]
         return res_df

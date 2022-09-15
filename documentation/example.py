@@ -59,7 +59,7 @@ print(baseline)
 
 client.add_baseline(baseline)
 
-
+client.tags = ["TAG037"]
 result = client.get_normalization()
 
 print(result)

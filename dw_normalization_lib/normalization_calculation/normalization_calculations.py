@@ -14,6 +14,7 @@ class Normalized_calculations():
             "normalized_flux": self.normalized_flux,
             "normalized_salt_passage": self.normalized_salt_passage,
             "normalized_specific_flux": self.normalized_specific_flux,
+            "system_status": self.system_status
         }
 
     def calulate_coefficient(self, df):
@@ -264,7 +265,7 @@ class Normalized_calculations():
             return 0
 
 
-    def normalized_permeate_flow(self, df, i):
+    def normalized_permeate_flow(self, df):
         if "TT_1_C" not in df:
             df["TT_1_C"] = df.apply(self.calculate_TT_1_C, axis=1)
         if "coefficient" not in df:
@@ -299,7 +300,7 @@ class Normalized_calculations():
         return df
 
 
-    def normalized_differential_pressure(self, df, i):
+    def normalized_differential_pressure(self, df):
         if "TT_1_C" not in df:
             df["TT_1_C"] = df.apply(self.calculate_TT_1_C, axis=1)
         if "coefficient" not in df:
@@ -316,7 +317,7 @@ class Normalized_calculations():
         return df
 
 
-    def normalized_permeate_TDS(self, df, i):
+    def normalized_permeate_TDS(self, df):
         if "TT_1_C" not in df:
             df["TT_1_C"] = df.apply(self.calculate_TT_1_C, axis=1)
         if "osmotic_pressure_Posmo_p" not in df:
@@ -351,7 +352,7 @@ class Normalized_calculations():
         return df
 
 
-    def net_driving_pressure(self, df, i):
+    def net_driving_pressure(self, df):
         if "TT_1_C" not in df:
             log.debug('normalization - calculate_TT_1_C')
             df["TT_1_C"] = df.apply(self.calculate_TT_1_C, axis=1)
@@ -382,7 +383,7 @@ class Normalized_calculations():
         return df
 
 
-    def normalized_flux(self, df, i):
+    def normalized_flux(self, df):
         if "TT_1_C" not in df:
             df["TT_1_C"] = df.apply(self.calculate_TT_1_C, axis=1)
         if "lead_element_flow" not in df:
@@ -420,7 +421,7 @@ class Normalized_calculations():
         return df
 
 
-    def normalized_salt_passage(self, df, i):
+    def normalized_salt_passage(self, df):
         if "avg_feed" not in df:
             df["avg_feed"] = df.apply(self.calculate_avg_feed, axis=1)
         if "avg_membrane_rejection" not in df:
@@ -444,7 +445,7 @@ class Normalized_calculations():
         return df
 
 
-    def normalized_specific_flux(self, df, i):
+    def normalized_specific_flux(self, df):
         if "operating_flux" not in df:
             df["operating_flux"] = df.apply(self.calculate_operating_flux, axis=1)
 
@@ -494,4 +495,7 @@ class Normalized_calculations():
 
         df["normalized_specific_flux"] = df.apply(
             self.calculate_normalized_specific_flux, axis=1)
+        return df
+
+    def system_status(self, df):
         return df

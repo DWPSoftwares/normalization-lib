@@ -80,3 +80,4 @@ class Supported_Normalized_calcs(enum.Enum):
         FLUX = 'normalized_flux'
         SALT_PASSAGE = 'normalized_salt_passage'
         SPECIFIC_FLUX = 'normalized_specific_flux'
+        SYSTEM_STATUS = 'system_status'
