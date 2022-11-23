@@ -235,7 +235,8 @@ class Normalization_client:
         log.debug(
             f'Filter Reject Conductivity, Low: {self.filters.reject_conductivity_low}, High :{self.filters.reject_conductivity_high}')
         initial_row_count = df.shape[0]
-        df.loc[
+        df_filters = df[["Last_CCD_VR", "FIT1", "CIT2"]]
+        df_filters.loc[
             (df["Last_CCD_VR"] < float(self.filters.recovery_low))
             | (df["Last_CCD_VR"] > float(self.filters.recovery_high))
             | (df["FIT1"] < float(self.filters.feed_flow_low))
@@ -243,6 +244,8 @@ class Normalization_client:
             | (df["CIT2"] < float(self.filters.reject_conductivity_low))
             | (df["CIT2"] > float(self.filters.reject_conductivity_high))
         ] = np.nan
+
+        result_df = result_df.where(pd.notnull(result_df), None)
 
         # df.dropna(subset=["FIT1", "CIT2", "Last_CCD_VR"], inplace=True)
         filter_row_count = df.shape[0]

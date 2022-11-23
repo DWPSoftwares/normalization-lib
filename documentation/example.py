@@ -11,7 +11,8 @@ from dw_normalization_lib import (
     BASELINE_DEFAULT_TAG_MAP,
     Filters,
     Normalization_config,
-    Supported_Normalized_calcs
+    Supported_Normalized_calcs,
+    Filters
 )
 
 from dw_timeseries_lib import (
@@ -39,6 +40,8 @@ timeseries_factory = Timeseries_factory()
 df_converter = Df_influx_convertor()
 influx_client = timeseries_factory.get_instance(SupportedDbs(1), connection_data, df_converter)
 
+filters = Filters(0, 100, 0, 100, 0, 100)
+
 #creating and configuring normalization config
 normalization_config = Normalization_config(
     1,
@@ -47,7 +50,7 @@ normalization_config = Normalization_config(
     datetime.datetime.utcnow() - datetime.timedelta(days=1),  # 1 day ago
     datetime.datetime.utcnow(),
     [Supported_Normalized_calcs('normalized_permeate_flow'), Supported_Normalized_calcs('net_driving_pressure')],
-    mapping
+    mapping,
 )
 
 client = Normalization_client(influx_client, normalization_config)
