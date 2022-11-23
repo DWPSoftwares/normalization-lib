@@ -245,7 +245,7 @@ class Normalization_client:
             | (df["CIT2"] > float(self.filters.reject_conductivity_high))
         ] = np.nan
 
-        result_df = result_df.where(pd.notnull(result_df), None)
+        df = df.where(pd.notnull(df), None)
 
         # df.dropna(subset=["FIT1", "CIT2", "Last_CCD_VR"], inplace=True)
         filter_row_count = df.shape[0]
