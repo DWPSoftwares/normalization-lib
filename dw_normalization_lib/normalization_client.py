@@ -21,6 +21,7 @@ from dw_normalization_lib.errors import (
 
 log = logging.getLogger(__name__)
 
+
 class Normalization_client:
     id: int
     systemId: Union[str, None] = None
@@ -72,30 +73,29 @@ class Normalization_client:
                     missing_tags.append(tag)
                 # elif type(baseline[tag]) is not float:
                 #     invalid_baseline_tags.append(tag)
-            
+
             if missing_tags:
                 msg = f'mapping is missing required tags for normalization. The following tags are missing: {", ".join(missing_tags)}'
                 log.error(msg)
                 raise Missing_baseline_tag(msg)
-            
+
             if invalid_baseline_tags:
                 msg = f'invalid values for some baseline tags: {", ".join(invalid_baseline_tags)}'
                 log.error(msg)
                 raise Invalid_baseline_values(msg)
-        
 
         def baseline_to_df():
             df_dict = {key: [baseline[key]] for key in baseline}
             df = pd.DataFrame.from_dict(df_dict)
             return df
-        
+
         validate_baseline()
         # continue if no error
 
         baseline_df = baseline_to_df()
         self.baseline = baseline_df
 
-    def baseline_from_timestamp(self, timestamp:datetime.datetime):
+    def baseline_from_timestamp(self, timestamp: datetime.datetime):
         def extract_closest_df_value(df, column, timestamp):
             df = df[[column]]
             df = df.dropna()
@@ -120,11 +120,12 @@ class Normalization_client:
         dt = timestamp.replace(tzinfo=None)
         start_dt = dt - datetime.timedelta(minutes=30)
         end_dt = dt + datetime.timedelta(minutes=30)
-        
+
         measurments = list()
         tags = {}
         for tag in LibConstants.BASELINE_TAGS:
-            tags[tag] = Tag(tag, self.mapping[tag], LibConstants.DEFAULT_FUNCTION)
+            tags[tag] = Tag(tag, self.mapping[tag],
+                            LibConstants.DEFAULT_FUNCTION)
         baseline_measurment = Measurement(
             "baseline",
             self.systemId,
@@ -133,7 +134,8 @@ class Normalization_client:
             start_dt,
             end_dt,
             timezone=tz,
-            db=LibConstants.DEFAULT_DB
+            db=LibConstants.DEFAULT_DB,
+            bucket="ccro-systems"
         )
         measurments.append(baseline_measurment)
         res_measurment = self.timeseries_client.get_data(measurments)
@@ -142,7 +144,8 @@ class Normalization_client:
         baseline = {}
         if df is not None and not df.empty:
             df_dt = pd.to_datetime(dt)
-            df["Time"] = pd.to_datetime(df["Time"]).dt.tz_localize(None)  # convert from ISO to df TimeStamp
+            df["Time"] = pd.to_datetime(df["Time"]).dt.tz_localize(
+                None)  # convert from ISO to df TimeStamp
             df = df.set_index("Time")
             for i, column in enumerate(df.columns.values.tolist()):
                 if column == "Time":
@@ -150,11 +153,12 @@ class Normalization_client:
                 val = extract_closest_df_value(df.copy(), column, df_dt)
                 baseline[column] = val
         else:
-            mapping_tags_string = ' '.join([self.mapping[tag] for tag in tag in LibConstants.BASELINE_TAGS])
+            mapping_tags_string = ' '.join(
+                [self.mapping[tag] for tag in tag in LibConstants.BASELINE_TAGS])
             log.warn('No data in timeseries db for all tags in selected mapping: {mapping_tags_string}, \
                 for system {self.systemId} in the time window from {start_dt} to {end_dt}')
             baseline = {elem: None for elem in self.mapping}
-        
+
         return baseline
 
     def get_normalization(self):
@@ -167,12 +171,13 @@ class Normalization_client:
         df = self.__calculate_normalization_df(df)
         df = self.__remove_baseline(df)
         return df
-    
+
     def __normalization_mapping_df_from_timeseries_db(self):
         measurments = list()
         tags = {}
         for tag in self.baseline:
-            tags[tag] = Tag(tag, self.mapping[tag], LibConstants.DEFAULT_FUNCTION)
+            tags[tag] = Tag(tag, self.mapping[tag],
+                            LibConstants.DEFAULT_FUNCTION)
         # case client requested additional system tags
         if self.tags:
             for tag in self.tags:
@@ -185,16 +190,17 @@ class Normalization_client:
             self.group,
             self.start_datetime,
             self.end_datetime,
-            db=LibConstants.DEFAULT_DB
+            db=LibConstants.DEFAULT_DB,
+            bucket="ccro-systems"
         )
         measurments.append(new_measurment)
         res_measurment = self.timeseries_client.get_data(measurments)
         df = res_measurment[0].data
-        
+
         if df.empty:
             error = "Error in fetching data for baseline tags - no data"
             raise Empty_timeseries_result(error, code=1)
-        
+
         series_null_columns = df.isna().all()
         if series_null_columns.any():
             # array
@@ -212,7 +218,7 @@ class Normalization_client:
         df.drop(df.tail(1).index, inplace=True)
         return df
 
-    def __apply_filters(self,df):
+    def __apply_filters(self, df):
         def store_max_min_values(df, widget):
             widget[LibConstants.DATA_MIN_MAX_VALUES] = {
                 "Recovery": {"Max": round(df["Last_CCD_VR"].max(), 2), "Min": round(df["Last_CCD_VR"].min(), 2)},
@@ -260,10 +266,12 @@ class Normalization_client:
                 log.debug(
                     f'Calling normalized Function :{calculation_client.normalization_function_map[tag.value]}, Tag :{tag.value}'
                 )
-                df = calculation_client.normalization_function_map[tag.value](df)
+                df = calculation_client.normalization_function_map[tag.value](
+                    df)
 
         result_columns = ["Time"]
-        result_columns.extend([tag.value for tag in self.normalization_tags if tag in Supported_Normalized_calcs])
+        result_columns.extend(
+            [tag.value for tag in self.normalization_tags if tag in Supported_Normalized_calcs])
         # case client requested additional system tags
         if self.tags:
             result_columns.extend([tag for tag in self.tags])
