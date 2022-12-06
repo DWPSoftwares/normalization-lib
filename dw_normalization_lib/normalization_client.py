@@ -185,7 +185,7 @@ class Normalization_client:
             self.group,
             self.start_datetime,
             self.end_datetime,
-            db=LibConstants.DEFAULT_DB
+            bucket=LibConstants.DEFAULT_BUCKET,
         )
         measurments.append(new_measurment)
         res_measurment = self.timeseries_client.get_data(measurments)

@@ -5,6 +5,7 @@ class LibConstants:
     DEFAULT_FUNCTION = "mean"
     DEFAULT_GROUP = 10  # 10 seconds
     DEFAULT_DB = 'test_DB'
+    DEFAULT_BUCKET = "ccro-systems"
     FILTERS = ('Recovery', 'FeedFlow', 'RejectConductivity')
     DATA_MIN_MAX_VALUES = "DATA_MIN_MAX_VALUES"
     LABELS = {
