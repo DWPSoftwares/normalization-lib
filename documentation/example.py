@@ -18,8 +18,9 @@ from dw_normalization_lib import (
 from dw_timeseries_lib import (
     Timeseries_factory,
     SupportedDbs,
-    Influx_connection_data,
-    Df_influx_convertor
+    Df_influx_convertor_v2,
+    Influx_connection_data_v2,
+    InfluxDbVersion
 )
 
 DEFAULT_SYSTEMID = 'WEST_MORGAN_1_1137C_RO1'
@@ -35,10 +36,15 @@ with open("./documentation/baseline.json", 'r') as fi:
     baseline = json.load(fi)
 
 # creating and configuring influx client
-connection_data = Influx_connection_data(config["host"], config["port"], config["username"], config["password"])
+# connection_data = Influx_connection_data(config["host"], config["port"], config["username"], config["password"])
+# timeseries_factory = Timeseries_factory()
+df_converter = Df_influx_convertor_v2()
+# influx_client = timeseries_factory.get_instance(SupportedDbs(1), connection_data, df_converter)
+
+connection_data = Influx_connection_data_v2(org_name=config["org_name"],token=config["token"],url=config["url"])
+
 timeseries_factory = Timeseries_factory()
-df_converter = Df_influx_convertor()
-influx_client = timeseries_factory.get_instance(SupportedDbs(1), connection_data, df_converter)
+influx_client = timeseries_factory.get_instance(SupportedDbs(1), connection_data, df_converter, version=InfluxDbVersion.V2)
 
 filters = Filters(0, 100, 0, 100, 0, 100)
 
@@ -58,6 +64,7 @@ client = Normalization_client(influx_client, normalization_config)
 ts = datetime.datetime(2022, 9, 1, 9, 18)
 
 baseline = client.baseline_from_timestamp(ts)
+print("--- baseline ---- \n")
 print(baseline)
 
 client.add_baseline(baseline)
@@ -65,4 +72,5 @@ client.add_baseline(baseline)
 client.tags = ["TAG037"]
 result = client.get_normalization()
 
+print('---result--- \n')
 print(result)
