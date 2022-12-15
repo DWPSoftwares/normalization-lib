@@ -19,7 +19,7 @@ with open(os.path.join(base_path, "dw_normalization_lib", "_version.py")) as fp:
 setup(
     name='normalization-lib',
     version=version,
-    author='Eduard Stefano',
+    author='DuPont W&P IT Team',
     author_email='eduard.gorohovski@dupont.com',
     description='A python package for normalization calculations from timeseries data',
     long_description=long_description,

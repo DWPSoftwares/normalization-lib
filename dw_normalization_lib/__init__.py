@@ -7,7 +7,7 @@ BASELINE_DEFAULT_TAG_MAP = LibConstants.BASELINE_DEFAULT_TAG_MAP
 from .objects import Filters, Normalization_config
 from ._version import __version__
 
-__author__ = "Eduard Stefano (eduard.gorohovski@dupont.com)"
+__author__ = "DuPont W&P IT Team"
 __version__ = __version__
 
 __all__ = (
