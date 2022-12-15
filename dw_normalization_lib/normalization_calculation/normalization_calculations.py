@@ -484,7 +484,7 @@ class Normalized_calculations():
             df["net_driving_pressure"] = df.apply(
                 self.calculate_net_driving_pressure, axis=1)
         if "specific_flux" not in df:
-            df["Tag" + str(i + 1)] = df.apply(self.calculate_specific_flux, axis=1)
+            df["specific_flux"] = df.apply(self.calculate_specific_flux, axis=1)
 
         args = (
             df["trans_membrane_pressure"].values[-1],
